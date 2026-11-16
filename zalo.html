@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zalo Super Bot</title>
+    <style>
+        body { font-family: 'Roboto', sans-serif; margin: 0; padding: 0; background: #1a1a1a; color: white; overflow: hidden; }
+        
+        /* Giao diện chính (ẩn khi chạy) */
+        #main-panel {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; width: 100vw; background: #000; z-index: 10; position: absolute;
+        }
+        
+        /* Floating Button (Nút trôi nổi) */
+        #float-btn {
+            position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px;
+            background: #007bff; border-radius: 50%; border: 2px solid #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 24px; font-weight: bold; color: white;
+            user-select: none; touch-action: manipulation;
+        }
+
+        /* Giao diện nhập liệu (Popup) */
+        #input-popup {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; max-width: 350px; background: #2d2d2d; border: 1px solid #007bff;
+            border-radius: 12px; padding: 20px; z-index: 10000; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        
+        h2 { margin-top: 0; color: #007bff; text-align: center; }
+        label { display: block; margin-top: 10px; font-size: 12px; color: #ccc; }
+        
+        input, textarea {
+            width: 100%; padding: 10px; margin-top: 5px; background: #444; border: 1px solid #555;
+            color: white; border-radius: 6px; box-sizing: border-box; font-size: 14px;
+        }
+        
+        textarea { height: 80px; resize: none; }
+        
+        .btn-group { margin-top: 15px; display: flex; gap: 10px; }
+        button {
+            flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; font-size: 14px;
+        }
+        .btn-start { background: #28a745; color: white; }
+        .btn-stop { background: #dc3545; color: white; display: none; }
+        .btn-close { background: #6c757d; color: white; }
+
+        #status { margin-top: 10px; text-align: center; font-size: 12px; color: #ffd700; }
+        
+        /* Key check screen */
+        #key-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; background: #000; position: absolute; z-index: 20; }
+        #key-input { text-align: center; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+    <!-- Màn hình nhập Key -->
+    <div id="key-screen">
+        <h2 style="color:white;">CHÀO MỪNG HUYỀN THOẠI TELEGRAM</h2>
+        <input type="password" id="key-input" placeholder="Nhập Key" style="width: 80%; max-width: 300px;">
+        <button class="btn-start" onclick="checkKey()" style="margin-top: 20px; width: 80%; max-width: 300px;">XÁC THỰC</button>
+    </div>
+
+    <!-- Nút trôi nổi -->
+    <div id="float-btn" onclick="togglePopup()">🚀</div>
+
+    <!-- Popup nhập liệu -->
+    <div id="input-popup">
+        <div style="display:flex; justify-content:space-between;">
+            <h2>Zalo Auto Spam</h2>
+            <span style="cursor:pointer; color:red;" onclick="togglePopup()">✖</span>
+        </div>
+        
+        <label>Nội dung (Mỗi dòng 1 tin):</label>
+        <textarea id="content" placeholder="Tin nhắn 1&#10;Tin nhắn 2&#10;Tin nhắn 3"></textarea>
+        
+        <label>ID Zalo (Tùy chọn):</label>
+        <input type="text" id="zalo-id" placeholder="Ví dụ: 123456789">
+        
+        <label>Delay (ms) - Tối thiểu 1:</label>
+        <input type="number" id="delay" value="50" min="1">
+        
+        <div id="status">Sẵn sàng...</div>
+        
+        <div class="btn-group">
+            <button class="btn-start" id="start-btn" onclick="startBot()">CHẠY NGAY</button>
+            <button class="btn-stop" id="stop-btn" onclick="stopBot()">DỪNG</button>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let botInterval;
+        const contentEl = document.getElementById('content');
+        const idEl = document.getElementById('zalo-id');
+        const delayEl = document.getElementById('delay');
+        const statusEl = document.getElementById('status');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+
+        function checkKey() {
+            const key = document.getElementById('key-input').value;
+            if (key === 'phonggiaibu') {
+                document.getElementById('key-screen').style.display = 'none';
+                // Khởi động nút trôi nổi
+                document.getElementById('float-btn').style.display = 'flex';
+            } else {
+                alert('Key sai!');
+            }
+        }
+
+        function togglePopup() {
+            const popup = document.getElementById('input-popup');
+            popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function startBot() {
+            const rawContent = contentEl.value.trim();
+            const tagId = idEl.value.trim();
+            let delay = parseInt(delayEl.value);
+            if (delay < 1) delay = 1;
+
+            if (!rawContent) {
+                alert("Nhập nội dung trước!");
+                return;
+            }
+
+            const lines = rawContent.split('\n').filter(l => l.trim() !== '');
+            let index = 0;
+
+            isRunning = true;
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+            statusEl.innerText = `Đang chạy... (${index}/${lines.length})`;
+
+            // Logic giả lập tự động nhập và gửi
+            // Trên App thật, Android cần Accessibility Service. 
+            // Dưới đây là logic điều khiển nếu chạy trong môi trường Hybrid App (Cordova/Capacitor)
+            // Hoặc giả lập hành động nếu bạn dùng công cụ tự động hóa điện thoại (AutoClicker/Tasker)
+            
+            botInterval = setInterval(() => {
+                if (!isRunning) return;
+
+                if (index >= lines.length) {
+                    statusEl.innerText = "Hoàn thành!";
+                    isRunning = false;
+                    startBtn.style.display = 'block';
+                    stopBtn.style.display = 'none';
+                    clearInterval(botInterval);
+                    return;
+                }
+
+                const currentLine = lines[index];
+                const finalMsg = tagId ? `${currentLine} @${tagId}` : currentLine;
+                
+                statusEl.innerText = `Đang gửi: "${finalMsg.substring(0, 15)}..."`;
+
+                // Gọi hàm giả lập nhập liệu (Cần tích hợp với Android JS Bridge để thực sự gõ)
+                sendToZalo(finalMsg);
+                
+                index++;
+            }, delay);
+        }
+
+        function stopBot() {
+            isRunning = false;
+            clearInterval(botInterval);
+            statusEl.innerText = "Đã dừng.";
+            startBtn.style.display = 'block';
+            stopBtn.style.display = 'none';
+        }
+
+        // Hàm giả lập gửi tin nhắn
+        // Để chạy thật trên App, bạn cần dùng thư viện như 'window.zaloBot.send(text)' khi build APK
+        function sendToZalo(text) {
+            console.log("Gửi: " + text);
+            // Nếu chạy trên Android thuần, đoạn này sẽ trigger Accessibility Service
+            // Ví dụ: Android.runCommand("type", text); Android.runCommand("enter");
+            
+            // Hiển thị thông báo toast giả lập
+            showToast(`Đã nhập và gửi: ${text}`);
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.innerText = msg;
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.left = '
